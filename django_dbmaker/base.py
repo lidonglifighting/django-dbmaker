@@ -60,13 +60,13 @@ except ImportError:
     e = sys.exc_info()[1]
     raise ImproperlyConfigured("Error loading pyodbc module: %s" % e)
 
-logger = logging.getLogger('django.db.backends')
-logger.setLevel(logging.DEBUG)
-handler = logging.FileHandler('mylog.log')
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-handler.setFormatter(formatter)
-logger.addHandler(handler)
-logger.debug('This is a DEBUG message')
+#logger = logging.getLogger('django.db.backends')
+#logger.setLevel(logging.DEBUG)
+#handler = logging.FileHandler('mylog.log')
+#formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+#handler.setFormatter(formatter)
+#logger.addHandler(handler)
+#logger.debug('This is a DEBUG message')
 
 m = re.match(r'(\d+)\.(\d+)\.(\d+)(?:-beta(\d+))?', Database.version)
 vlist = list(m.groups())

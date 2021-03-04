@@ -24,7 +24,7 @@ Installation
 
    .. code:: python
 
-      git clone -b dbmaker https://github.com/lidonglifighting/django-dbmaker
+      git clone https://github.com/dbmaker-go/django-dbmaker
       cd django-dbmaker
       python setup.py install
       
@@ -34,7 +34,7 @@ Installation
 
       DATABASES = {
          'default': {
-            'ENGINE':'django_pyodbc',
+            'ENGINE':'django_dbmaker',
             'NAME':'DBName',
             'HOST': 'HostIp:Port',
             'USER':'UserName',
@@ -43,7 +43,6 @@ Installation
             'USE_TZ':False,
             'OPTIONS':{
                 'driver':'DBMaker 5.4 Driver',
-                'is_dbmaker':True,
             },
          }
       }
@@ -89,110 +88,6 @@ Standard Django settings
 * ``driver``
 
     String. ODBC Driver to use. Default is ``"DBMaker 5.4 Driver"``.
-
-* ``is_dbmaker``
-
-    Boolean. Indicates if pyodbc should direct the the ODBC driver to connect to dbmaker.
-
-Tests
------
-   
-Windows:
-
-create database
-
-Dmconfig.ini:
-    .. code:: python
-    
-        [test_utf8db]
-        db_lcode = 10
-        DB_PtNum=2478
-        DB_SvAdr=127.0.0.1
-
-path_install_dbmaker/shared/lua/modconfig.ini:
-    .. code:: python
-
-        LuaDate=LuaDate
- 
-open C:\\DBMaker\\5.4\\bin\\dmsql32.exe:
-   .. code:: python
-   
-       create db test_utf8db;
-       run C:\DBMaker\5.4\shared\udf\dt.sql;
-       run C:\DBMaker\5.4\shared\udf\to_date.sql;
-       terminate db;
-       q;
-
-start database:
-   .. code:: python
-   
-       dmserver.exe TEST_UTF8DB
-
-create odbc data source in odbc driver manager:
-
-run testcase for django2.2:
-
-.. code:: bash
-
-   python tests/django22/runtests.py --settings=test_django_dbmaker --keepdb
- 
-Linux:
-
-create database:
-   
-dmconfig.ini:
-   .. code:: python
-   
-       [test_utf8db]
-       db_lcode = 10
-       DB_PtNum=2478
-       DB_SvAdr=127.0.0.1
-
-path_install_dbmaker/shared/lua/modconfig.ini:
-    .. code:: python
-
-        LuaDate=LuaDate
-
-open /home/dbmaker/5.4/bin/dmsqls:
-   .. code:: python
-   
-       create db test_utf8db;
-       run /home/dbmaker/5.4/shared/udf/dt.sql;
-       run /home/dbmaker/5.4/shared/udf/to_date.sql;
-       terminate db;
-       q;
-   
-start database:
-   .. code:: python
-   
-       dmserver test_utf8db
-add odbc data source:
-
-/etc/odbcinst.ini:
- .. code:: python
- 
-    [DBMaker 5.4 Driver]
-    Driver=/home/dbmaker/5.4/lib/so/libdmapic.so
-    UsageCount=1
-
-/etc/odbc.ini:
- .. code:: python
- 
-    [test_utf8db]
-    Driver = DBMaker 5.4 Driver
-    Description = DBMaker ODBC Driver
-    Server = localhost
-    Host = localhost
-    Port = 2478
-    Database = test_utf8db
-    Userid = sysadm
-    Password =
-
-run testcase for django2.2
-
-.. code:: bash
-
-   sudo python3 tests/django22/runtests.py --settings=test_django_dbmaker --keepdb
  
 From the original project README.
 

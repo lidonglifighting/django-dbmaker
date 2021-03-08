@@ -97,11 +97,11 @@ else:
     else:
         raise ImproperlyConfigured("Django %d.%d is not supported." % DjangoVersion[:2])
 
-from django_pyodbc.operations import DatabaseOperations
-from django_pyodbc.client import DatabaseClient
-from django_pyodbc.compat import binary_type, text_type, timezone
-from django_pyodbc.creation import DatabaseCreation
-from django_pyodbc.introspection import DatabaseIntrospection
+from django_dbmaker.operations import DatabaseOperations
+from django_dbmaker.client import DatabaseClient
+from django_dbmaker.compat import binary_type, text_type, timezone
+from django_dbmaker.creation import DatabaseCreation
+from django_dbmaker.introspection import DatabaseIntrospection
 from .schema import DatabaseSchemaEditor
 from .features import DatabaseFeatures
 

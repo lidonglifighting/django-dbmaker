@@ -59,12 +59,12 @@ except ImportError:
 from django.utils.dateparse import parse_date, parse_time, parse_datetime
 
 
-from django_pyodbc.compat import smart_text, string_types, timezone
+from django_dbmaker.compat import smart_text, string_types, timezone
 from django.utils import six
 from django.utils.duration import duration_microseconds
 
 class DatabaseOperations(BaseDatabaseOperations):
-    compiler_module = "django_pyodbc.compiler"
+    compiler_module = "django_dbmaker.compiler"
     def __init__(self, connection):
         super(DatabaseOperations, self).__init__(connection) 
         self.connection = connection

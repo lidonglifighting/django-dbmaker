@@ -51,7 +51,7 @@ except ImportError:
     from django.db.backends.creation import BaseDatabaseCreation
 
 
-from django_pyodbc.compat import b, md5_constructor
+from django_dbmaker.compat import b, md5_constructor
 
 class DataTypesWrapper(dict):
     def __getitem__(self, item):

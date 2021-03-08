@@ -51,6 +51,9 @@ else:
     row_to_table_info = lambda row: TableInfo(row[0].lower(), row[1])
 
 import pyodbc as Database
+from django.db.backends.base.introspection import (
+    BaseDatabaseIntrospection, FieldInfo, TableInfo,
+)
 import sqlparse
 from django.utils.datastructures import OrderedSet
 SQL_AUTOFIELD = -777555
@@ -117,7 +120,7 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
         """
 
         # map pyodbc's cursor.columns to db-api cursor description
-        columns = [[c[3], c[4], None, c[6], c[6], c[8], c[10]] for c in cursor.columns(table=table_name)]
+        columns = [[c[3], c[4], None, c[6], c[6], c[8], c[10], c[12]] for c in cursor.columns(table=table_name)]
         items = []
         for column in columns:
             if identity_check and self._is_auto_field(cursor, table_name, column[0]):
@@ -127,8 +130,9 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
             #   For example, model.objects.values(<text_field_name>).count() will fail on a sqlserver 'text' field
             if column[1] == Database.SQL_WVARCHAR and column[3] < 4000:
                 column[1] = Database.SQL_WCHAR
-            items.append(column)
-        return items
+            items.append(FieldInfo(*column))
+            
+        return items  
     
     def colname(self, cursor, table_name): 
         colnames = [c[3] for c in cursor.columns(table=table_name)]

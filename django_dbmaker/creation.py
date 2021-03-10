@@ -84,7 +84,7 @@ class DatabaseCreation(BaseDatabaseCreation):
         'DateTimeField':                'timestamp',
         'DecimalField':                 'decimal(%(max_digits)s, %(decimal_places)s)',
         'DurationField':                'bigint',
-        'FileField':                    'File',
+        'FileField':                    'nvarchar(%(max_length)s)',
         'FilePathField':                'nvarchar(%(max_length)s)',
         'FloatField':                   'double',
         'GenericIPAddressField':        'nvarchar(39)',

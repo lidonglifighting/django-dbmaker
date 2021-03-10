@@ -174,42 +174,6 @@ class DatabaseWrapper(BaseDatabaseWrapper):
     creation_class = DatabaseCreation
     introspection_class = DatabaseIntrospection
     validation_class = BaseDatabaseValidation
-    
-
-    def __init__(self, *args, **kwargs):
-        super(DatabaseWrapper, self).__init__(*args, **kwargs)
-
-        options = self.settings_dict.get('OPTIONS', None)
-
-        if options:
-            self.MARS_Connection = options.get('MARS_Connection', False)
-            self.datefirst = options.get('datefirst', 7)
-            self.unicode_results = options.get('unicode_results', False)
-            self.encoding = options.get('encoding', 'utf-8')
-            self.driver_needs_utf8 = options.get('driver_needs_utf8', None)
-            self.limit_table_list = options.get('limit_table_list', False)
-
-            # make lookup operators to be collation-sensitive if needed
-            self.collation = options.get('collation', None)
-            if self.collation:
-                self.operators = dict(self.__class__.operators)
-                ops = {}
-                for op in self.operators:
-                    sql = self.operators[op]
-                    if sql.startswith('LIKE '):
-                        ops[op] = '%s COLLATE %s' % (sql, self.collation)
-                self.operators.update(ops)
-
-        self.test_create = self.settings_dict.get('TEST_CREATE', True)
-
-        self.features = DatabaseFeatures(self)
-        self.ops = DatabaseOperations(self)
-        self.client = DatabaseClient(self)
-        self.creation = DatabaseCreation(self)
-        self.introspection = DatabaseIntrospection(self)
-        self.validation = BaseDatabaseValidation(self)
-        self.connection = None
-
 
     def get_connection_params(self):
         settings_dict = self.settings_dict
@@ -245,7 +209,8 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         return conn_params
 
     def get_new_connection(self, conn_params):
-        return Database.connect(**conn_params)
+        connection = Database.connect(**conn_params)
+        return connection
 
     def init_connection_state(self):
         cursor = self.create_cursor()
@@ -301,8 +266,7 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         return connectionstring
 
     def create_cursor(self, name=None):
-        cursor = self.connection.cursor()
-        return CursorWrapper(cursor)
+        return CursorWrapper(self.connection.cursor(), self)
 
     def _execute_foreach(self, sql, table_names=None):
         cursor = self.cursor()
@@ -340,13 +304,12 @@ class CursorWrapper(object):
     A wrapper around the pyodbc's cursor that takes in account a) some pyodbc
     DB-API 2.0 implementation and b) some common ODBC driver particularities.
     """
-    def __init__(self, cursor, encoding="", db_wrpr=None):
+    def __init__(self, cursor, connection):
+        self.active = True
         self.cursor = cursor
- #       self.driver_supports_utf8 = driver_supports_utf8
+        self.connection = connection
         self.last_sql = ''
         self.last_params = ()
-        self.encoding = encoding
-        self.db_wrpr = db_wrpr
 
     def close(self):
         try:

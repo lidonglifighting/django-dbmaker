@@ -18,5 +18,7 @@ class DatabaseFeatures(BaseDatabaseFeatures):
     can_introspect_autofield = True
     has_case_insensitive_like = False
     requires_literal_defaults = True
+    introspected_boolean_field_type = 'IntegerField'
+    can_introspect_small_integer_field = True
 #    case_whennot_not_supported = True
 

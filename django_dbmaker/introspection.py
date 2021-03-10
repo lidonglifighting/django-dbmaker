@@ -40,16 +40,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-try:
-    from django.db.backends.base.introspection import BaseDatabaseIntrospection, TableInfo
-except ImportError:
-    # Import location prior to Django 1.8
-    from django.db.backends import BaseDatabaseIntrospection
-
-    row_to_table_info = lambda row: row[0]
-else:
-    row_to_table_info = lambda row: TableInfo(row[0].lower(), row[1])
-
 import pyodbc as Database
 from django.db.backends.base.introspection import (
     BaseDatabaseIntrospection, FieldInfo, TableInfo,
@@ -57,11 +47,13 @@ from django.db.backends.base.introspection import (
 import sqlparse
 from django.utils.datastructures import OrderedSet
 SQL_AUTOFIELD = -777555
+SQL_BIGAUTOFIELD = -777444
 
 class DatabaseIntrospection(BaseDatabaseIntrospection):
     # Map type codes to Django Field types.
     data_types_reverse = {
-        SQL_AUTOFIELD:                  'IntegerField',
+        SQL_AUTOFIELD:                  'AutoField',
+        SQL_BIGAUTOFIELD:               'BigAutoField',
         Database.SQL_BIGINT:            'BigIntegerField',
         Database.SQL_BINARY:            'BinaryField',
         Database.SQL_BIT:               'NullBooleanField',
@@ -91,9 +83,9 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
         """
         Returns a list of table names in the current database.
         """
-        cursor.execute("SELECT trim(TABLE_NAME), 't' FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'TABLE'")
-
-        return [row_to_table_info(row) for row in cursor.fetchall()]
+        cursor.execute("SELECT trim(TABLE_NAME), trim(TABLE_TYPE) FROM INFORMATION_SCHEMA.TABLES")
+        types = {'TABLE': 't', 'VIEW': 'v'}
+        return [TableInfo(self.identifier_converter(row[0]), types.get(row[1])) for row in cursor.fetchall()]
 
     def _is_auto_field(self, cursor, table_name, column_name):
         """
@@ -104,7 +96,7 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
         #from django.db import connection
         #cursor.execute("SELECT COLUMNPROPERTY(OBJECT_ID(%s), %s, 'IsIdentity')",
         #                 (connection.ops.quote_name(table_name), column_name))
-        cursor.execute("SELECT COUNT(*) FROM SYSCOLUMN WHERE TABLE_NAME = UPPER(%s) AND COLUMN_NAME=%s AND TYPE_NAME='SERIAL'",
+        cursor.execute("SELECT COUNT(*) FROM SYSCOLUMN WHERE TABLE_NAME = UPPER(%s) AND COLUMN_NAME=UPPER(%s) AND TYPE_NAME='SERIAL'",
                          (self.connection.ops.quote_name(table_name), column_name))
         return cursor.fetchall()[0][0]
 
@@ -123,19 +115,24 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
         columns = [[c[3], c[4], None, c[6], c[6], c[8], c[10], c[12]] for c in cursor.columns(table=table_name)]
         items = []
         for column in columns:
+            column[0] = self.identifier_converter(column[0])
             if identity_check and self._is_auto_field(cursor, table_name, column[0]):
                 column[1] = SQL_AUTOFIELD
             # The conversion from TextField to CharField below is unwise.
             #   A SQLServer db field of type "Text" is not interchangeable with a CharField, no matter how short its max_length.
             #   For example, model.objects.values(<text_field_name>).count() will fail on a sqlserver 'text' field
             if column[1] == Database.SQL_WVARCHAR and column[3] < 4000:
-                column[1] = Database.SQL_WCHAR
+                column[1] = Database.SQL_WCHAR    
             items.append(FieldInfo(*column))
             
         return items  
     
+    def identifier_converter(self, name):
+        """Identifier comparison is case insensitive under Oracle."""
+        return name.lower()
+    
     def colname(self, cursor, table_name): 
-        colnames = [c[3] for c in cursor.columns(table=table_name)]
+        colnames = [self.identifier_converter(c[3]) for c in cursor.columns(table=table_name)]
         return colnames
                 
     def _bytes_to_list(self, bytes):
@@ -193,7 +190,7 @@ WHERE FK_TBL_NAME = Upper(%s) """
             fkcolIndex = self._bytes_to_list(fk_col_order)
             i = 0
             while (i<len(pkcolIndex)):
-                foreignKeys.append((self.colname(cursor, table_name)[fkcolIndex[i]], referenced_table_name , self.colname(cursor, referenced_table_name)[pkcolIndex[i]]))
+                foreignKeys.append((self.colname(cursor, table_name)[fkcolIndex[i]], self.identifier_converter(referenced_table_name), self.colname(cursor, referenced_table_name)[pkcolIndex[i]]))
                 i += 1
             
         return foreignKeys;
@@ -203,15 +200,6 @@ WHERE FK_TBL_NAME = Upper(%s) """
             if isinstance(f, models.AutoField):
                 return [{'table': table_name, 'column': f.column}]
         return []
-    
-    def get_primary_key_column(self, cursor, table_name):
-        """Return the column name of the primary key for the given table."""
-        # map pyodb[c's cursor.columns to db-api cursor description
-        columns = [c[3] for c in cursor.primaryKeys(table=table_name)]
-        items = []
-        for column in columns:
-            items.append(column)
-        return items
     
     def _parse_column_constraint(self, sql, columns):
         statement = sqlparse.parse(sql)[0]
@@ -231,7 +219,7 @@ WHERE FK_TBL_NAME = Upper(%s) """
                 break
             
             if token.ttype in (sqlparse.tokens.Name, sqlparse.tokens.Keyword):
-                if token.value.upper() in columns:
+                if token.value in columns:
                     check_columns.append(token.value)
             elif token.ttype == sqlparse.tokens.Literal.String.Symbol:
                 if token.value[1:-1] in columns:
@@ -271,6 +259,7 @@ WHERE FK_TBL_NAME = Upper(%s) """
         """
         cursor.execute(query, [table_name])
         for constraint, fk_col_order, pk_tbl_name, pk_col_order in cursor.fetchall():
+            constraint = self.identifier_converter(constraint)
             pkcolIndex = self._bytes_to_list(pk_col_order)
             fkcolIndex = self._bytes_to_list(fk_col_order)
             fkcollist = []
@@ -286,21 +275,22 @@ WHERE FK_TBL_NAME = Upper(%s) """
                 'unique': False,
                 'index': False,
                 'check': False,
-                'foreign_key': (pk_tbl_name, pkcollist),
+                'foreign_key': (self.identifier_converter(pk_tbl_name), pkcollist),
                 }
     
         #indexes (primary, unique, index)
         cursor.execute("call SHOWINDEX('sysadm', '%s')" % table_name)
         for table, non_unique, index, type_, colseq, column, asc_or_desc in [x[1:8] for x in cursor.fetchall()]:
+            index = self.identifier_converter(index)
             if index not in constraints:
                 constraints[index] = {
                     'columns': OrderedSet(),
-                    'primary_key': True if index=='PRIMARYKEY' else False,
+                    'primary_key': True if index=='primarykey' else False,
                     'unique': True if non_unique==0 else False,
                     'order': 'ASC' if asc_or_desc == 'A' else 'DESC',
-                    'index': True if index != 'PRIMARYKEY' else False, 
+                    'index': True if index != 'primarykey' else False, 
                 }
-            constraints[index]['columns'].add(column)    
+            constraints[index]['columns'].add(self.identifier_converter(column))    
             constraints[index]['type'] = 'BTREE'
             constraints[index]['check'] = False
             constraints[index]['foreign_key'] = None
@@ -315,7 +305,7 @@ WHERE FK_TBL_NAME = Upper(%s) """
         
         unnamed_constrains_index = 0
         for sql, column in cursor.fetchall():
-            sql = sql.replace('value', column) 
+            sql = sql.replace('value', self.identifier_converter(column)) 
             check_columns = self._parse_column_constraint(sql, self.colname(cursor, table_name));
             unnamed_constrains_index += 1
             constraints['__unnamed_constraint_%s__' % unnamed_constrains_index] = {

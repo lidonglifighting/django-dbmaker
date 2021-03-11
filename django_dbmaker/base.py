@@ -133,17 +133,21 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         # to make it case (in)sensitive. It will simply fallback to the
         # database collation.
         'exact': '= %s',
-        'iexact': "= UPPER(%s)",
+        'iexact': '= %s',
+        #'iexact': "= (%s)",
         'contains': "LIKE %s ESCAPE '\\'",
-        'icontains': "LIKE UPPER(%s) ESCAPE '\\'",
+        'icontains': "LIKE %s ESCAPE '\\'",
+        #'icontains': "LIKE UPPER(%s) ESCAPE '\\'",
         'gt': '> %s',
         'gte': '>= %s',
         'lt': '< %s',
         'lte': '<= %s',
         'startswith': "LIKE %s ESCAPE '\\'",
         'endswith': "LIKE %s ESCAPE '\\'",
-        'istartswith': "LIKE UPPER(%s) ESCAPE '\\'",
-        'iendswith': "LIKE UPPER(%s) ESCAPE '\\'",
+        'istartswith': "LIKE %s ESCAPE '\\'",
+        'iendswith': "LIKE %s ESCAPE '\\'",
+        #'istartswith': "LIKE UPPER(%s) ESCAPE '\\'",
+        #'iendswith': "LIKE UPPER(%s) ESCAPE '\\'",
 
         # TODO: remove, keep native T-SQL LIKE wildcards support
         # or use a "compatibility layer" and replace '*' with '%'
@@ -157,11 +161,14 @@ class DatabaseWrapper(BaseDatabaseWrapper):
     pattern_esc = r"REPLACE(REPLACE(REPLACE({}, '\', '\\'), '%%', '\%%'), '_', '\_')"
     pattern_ops = {
         'contains': r"LIKE '%%' || {} || '%%' ESCAPE '\'",
-        'icontains': r"LIKE '%%' || UPPER({}) || '%%' ESCAPE '\'",
+        'icontains': r"LIKE '%%' || {} || '%%' ESCAPE '\'",
+        #'icontains': r"LIKE '%%' || UPPER({}) || '%%' ESCAPE '\'",
         'startswith': r"LIKE {} || '%%' ESCAPE '\'",
-        'istartswith': r"LIKE UPPER({}) || '%%' ESCAPE '\'",
+        'istartswith': r"LIKE {} || '%%' ESCAPE '\'",
+        #'istartswith': r"LIKE UPPER({}) || '%%' ESCAPE '\'",
         'endswith': r"LIKE '%%' || {} ESCAPE '\'",
-        'iendswith': r"LIKE '%%' || UPPER({}) ESCAPE '\'",
+        'iendswith': r"LIKE '%%' || {} ESCAPE '\'",
+        #'iendswith': r"LIKE '%%' || UPPER({}) ESCAPE '\'",
     }
 
     # In Django 1.8 data_types was moved from DatabaseCreation to DatabaseWrapper.
@@ -355,7 +362,24 @@ class CursorWrapper(object):
         params = self.format_params(params)
         self.last_params = params
         sql = sql.replace('%%', '%')
-        return self.cursor.execute(sql, params)
+        try:
+            return self.cursor.execute(sql, params)
+        except IntegrityError:
+            e = sys.exc_info()[1]
+            raise utils.IntegrityError(*e.args)
+        except DatabaseError:
+            logger = logging.getLogger('django.db.backends')
+            logger.setLevel(logging.ERROR)
+            handler = logging.FileHandler('mylog.log')
+            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            handler.setFormatter(formatter)
+            logger.addHandler(handler)
+            logger.error('DEBUG SQL')
+            logger.error("----------------------------------------------------------------------------")
+            logger.error(sql)
+            logger.error(params)
+            e = sys.exc_info()[1]
+            raise utils.DatabaseError(*e.args)
         
     def executemany(self, sql, params_list):
         sql = self.format_sql(sql)

@@ -243,11 +243,6 @@ class DatabaseOperations(BaseDatabaseOperations):
         """
         return cursor.fetchone()[0]
 
-    def lookup_cast(self, lookup_type, internal_type=None):
-        if lookup_type in ('iexact', 'icontains', 'istartswith', 'iendswith'):
-            return "UPPER(%s)"
-        return "%s"
-
     def max_name_length(self):
         return 128
 

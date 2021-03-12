@@ -180,7 +180,10 @@ class DatabaseWrapper(BaseDatabaseWrapper):
     client_class = DatabaseClient
     creation_class = DatabaseCreation
     introspection_class = DatabaseIntrospection
-    validation_class = BaseDatabaseValidation
+    validation_class = BaseDatabaseValidation  
+    def __init__(self, *args, **kwargs):
+        super(DatabaseWrapper, self).__init__(*args, **kwargs)
+        self.test_create = self.settings_dict.get('TEST_CREATE', True)
 
     def get_connection_params(self):
         settings_dict = self.settings_dict

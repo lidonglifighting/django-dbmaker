@@ -23,7 +23,7 @@ class DatabaseSchemaEditor(BaseDatabaseSchemaEditor):
     sql_delete_fk = "ALTER TABLE %(table)s DROP FOREIGN KEY %(name)s"
     sql_delete_pk = "ALTER TABLE %(table)s DROP PRIMARY KEY %(name)s"
 
-    sql_delete_index = "DROP INDEX %(name)s ON %(table)s"
+    sql_delete_index = "DROP INDEX %(name)s FROM %(table)s"
 
     def quote_value(self, value):
         if isinstance(value, (datetime.date, datetime.time, datetime.datetime)):

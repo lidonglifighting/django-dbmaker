@@ -357,12 +357,10 @@ class DatabaseOperations(BaseDatabaseOperations):
         """
         if value is None:
             return None
-        if self.connection._DJANGO_VERSION >= 14 and settings.USE_TZ:
-            if timezone.is_aware(value):
-                # pyodbc donesn't support datetimeoffset
-                value = value.astimezone(timezone.utc)
-        if not self.connection.features.supports_microsecond_precision:
-            value = value.replace(microsecond=0)
+        if settings.USE_TZ and timezone.is_aware(value):
+            # pyodbc donesn't support datetimeoffset
+            value = value.astimezone(self.connection.timezone).replace(tzinfo=None)
+        
         return value
 
     def adapt_timefield_value(self, value):

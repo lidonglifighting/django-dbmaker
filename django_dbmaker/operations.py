@@ -51,13 +51,9 @@ except:
     pytz = None
 
 from django.conf import settings
-try:
-    from django.db.backends.base.operations import BaseDatabaseOperations
-except ImportError:
-    # import location prior to Django 1.8
-    from django.db.backends import BaseDatabaseOperations
+from django.db.backends.base.operations import BaseDatabaseOperations
+from django.db import utils
 from django.utils.dateparse import parse_date, parse_time, parse_datetime
-
 
 from django_dbmaker.compat import smart_text, string_types, timezone
 from django.utils import six
@@ -99,12 +95,21 @@ class DatabaseOperations(BaseDatabaseOperations):
         """
         if connector == '%%':
             return 'MOD(%s)' % ','.join(sub_expressions)
+        elif connector == '&':
+            return 'BAND(%s)' % ','.join(sub_expressions)
+        elif connector == '|':
+            return 'BOR(%s)' % ','.join(sub_expressions)
         elif connector == '^':
             return 'POWER(%s)' % ','.join(sub_expressions)
         elif connector == '<<':
             return '%s * (2 * %s)' % tuple(sub_expressions)
         elif connector == '>>':
             return '%s / (2 * %s)' % tuple(sub_expressions)
+        return super().combine_expression(connector, sub_expressions)
+    
+    def combine_duration_expression(self, connector, sub_expressions):
+        if connector not in ['+', '-']:
+            raise utils.DatabaseError('Invalid connector for timedelta: %s.' % connector)
         return super().combine_expression(connector, sub_expressions)
 
     def date_extract_sql(self, lookup_type, field_name):
@@ -357,6 +362,10 @@ class DatabaseOperations(BaseDatabaseOperations):
         """
         if value is None:
             return None
+         # Expression values are adapted by the database.
+        if hasattr(value, 'resolve_expression'):
+            return value
+        
         if settings.USE_TZ and timezone.is_aware(value):
             # pyodbc donesn't support datetimeoffset
             value = value.astimezone(self.connection.timezone).replace(tzinfo=None)
@@ -370,9 +379,15 @@ class DatabaseOperations(BaseDatabaseOperations):
         """
         if value is None:
             return None
+        
+        # Expression values are adapted by the database.
+        if hasattr(value, 'resolve_expression'):
+            return value
         # SQL Server doesn't support microseconds
         if isinstance(value, string_types):
             return datetime.datetime(*(time.strptime(value, '%H:%M:%S')[:6]))
+        if timezone.is_aware(value):
+            raise ValueError("DBMaker backend does not support timezone-aware times.")
         return datetime.time(value.hour, value.minute, value.second)
 
     def year_lookup_bounds(self, value):

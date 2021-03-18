@@ -20,5 +20,9 @@ class DatabaseFeatures(BaseDatabaseFeatures):
     requires_literal_defaults = True
     introspected_boolean_field_type = 'IntegerField'
     can_introspect_small_integer_field = True
+    supports_index_on_text_field = False
+    implied_column_null = True
+    supports_select_intersection = False
+    supports_select_difference = False
 #    case_whennot_not_supported = True
 

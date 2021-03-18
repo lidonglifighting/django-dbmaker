@@ -223,14 +223,6 @@ class DatabaseOperations(BaseDatabaseOperations):
             return 'CAST(%s as nvarchar)'
         return '%s'
 
-    def fulltext_search_sql(self, field_name):
-        """
-        Returns the SQL WHERE clause to use in order to perform a full-text
-        search of the given field_name. Note that the resulting string should
-        contain a '%s' placeholder for the value being searched against.
-        """
-        return 'CONTAINS(%s, %%s)' % field_name
-
     def last_insert_id(self, cursor, table_name, pk_name):
 #         table_name = self.quote_name(table_name)
 #         cursor.execute("SELECT CAST(IDENT_CURRENT(%s) as bigint)", [table_name])

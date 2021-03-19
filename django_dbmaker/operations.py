@@ -44,6 +44,7 @@ import datetime
 import decimal
 import time
 import uuid
+from _decimal import Decimal
 
 try:
     import pytz
@@ -382,6 +383,14 @@ class DatabaseOperations(BaseDatabaseOperations):
             raise ValueError("DBMaker backend does not support timezone-aware times.")
         return datetime.time(value.hour, value.minute, value.second)
 
+    def adapt_decimalfield_value(self, value, max_digits=None, decimal_places=None):
+        """
+        Transform a decimal.Decimal value to an object compatible with what is
+        expected by the backend driver for decimal (numeric) columns.
+        """
+        strvalue = super().adapt_decimalfield_value(value, max_digits, decimal_places)
+        return Decimal(strvalue)
+    
     def year_lookup_bounds(self, value):
         """
         Returns a two-elements list with the lower and upper bound to be used
@@ -393,21 +402,6 @@ class DatabaseOperations(BaseDatabaseOperations):
         # SQL Server doesn't support microseconds
         last = '%s-12-31 23:59:59'
         return [first % value, last % value]
-
-    def adapt_decimalfield_value(self, value, max_digits, decimal_places):
-        """
-        Transform a decimal.Decimal value to an object compatible with what is
-        expected by the backend driver for decimal (numeric) columns.
-        """
-        if value is None:
-            return None
-        if isinstance(value, decimal.Decimal):
-            context = decimal.getcontext().copy()
-            context.prec = max_digits
-            #context.rounding = ROUND_FLOOR
-            return "%.*f" % (decimal_places + 1, value.quantize(decimal.Decimal(".1") ** decimal_places, context=context))
-        else:
-            return "%.*f" % (decimal_places + 1, value)
 
     def convert_values(self, value, field):
         """

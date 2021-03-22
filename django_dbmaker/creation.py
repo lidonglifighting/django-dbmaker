@@ -98,14 +98,18 @@ class DatabaseCreation(BaseDatabaseCreation):
         'NewTimeField':                 'time',
         'NullBooleanField':             'int',
         'OneToOneField':                'int',
-        'PositiveIntegerField':         'int CHECK (%(column)s >= 0)',
-        'PositiveSmallIntegerField':    'smallint CHECK (%(column)s >= 0)',
+        'PositiveIntegerField':         'int',
+        'PositiveSmallIntegerField':    'smallint',
         'SlugField':                    'nvarchar(%(max_length)s)',
         'SmallIntegerField':            'smallint',
         'TextField':                    'nclob',
         'TimeField':                    'time',
         'UUIDField':                    'char(32)',       
     })
+    data_type_check_constraints = {
+        'PositiveIntegerField': '"%(column)s" >= 0',
+        'PositiveSmallIntegerField': '"%(column)s" >= 0',
+    }
     
     def _create_test_db(self, verbosity=1, autoclobber=False, keepdb=False):
         settings_dict = self.connection.settings_dict

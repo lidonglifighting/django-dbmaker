@@ -24,5 +24,6 @@ class DatabaseFeatures(BaseDatabaseFeatures):
     implied_column_null = True
     supports_select_intersection = False
     supports_select_difference = False
+    update_can_self_select = False
 #    case_whennot_not_supported = True
 

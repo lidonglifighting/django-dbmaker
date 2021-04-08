@@ -11,6 +11,7 @@ class DatabaseFeatures(BaseDatabaseFeatures):
 
     has_bulk_insert = False
     # DateTimeField doesn't support timezones, only DateTimeOffsetField
+    has_zoneinfo_database = False
     supports_timezones = False
     supports_sequence_reset = False
     supports_tablespaces = True
@@ -25,5 +26,6 @@ class DatabaseFeatures(BaseDatabaseFeatures):
     supports_select_intersection = False
     supports_select_difference = False
     update_can_self_select = False
+    has_zoneinfo_database = False
 #    case_whennot_not_supported = True
 

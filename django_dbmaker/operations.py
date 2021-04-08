@@ -116,9 +116,15 @@ class DatabaseOperations(BaseDatabaseOperations):
         return super().combine_expression(connector, sub_expressions)
     
     def combine_duration_expression(self, connector, sub_expressions):
-        if connector not in ['+', '-']:
-            raise utils.DatabaseError('Invalid connector for timedelta: %s.' % connector)
-        return super().combine_expression(connector, sub_expressions)
+        lhs, rhs = sub_expressions
+        sign = ' * -1' if connector == '-' else ''
+        if lhs.startswith('TIMESTAMPADD'):
+            col, sql = rhs, lhs
+        else:
+            col, sql = lhs, rhs
+        params = [sign for _ in range(sql.count('TIMESTAMPADD'))]
+        params.append(col)
+        return sql % tuple(params)
 
     def date_extract_sql(self, lookup_type, field_name):
         """
@@ -145,7 +151,14 @@ class DatabaseOperations(BaseDatabaseOperations):
             return "SECOND(%s)" % field_name
     
     def date_interval_sql(self, timedelta):
-        return str(duration_microseconds(timedelta))
+        """
+        implements the interval functionality for expressions
+        """
+        sec = timedelta.seconds + timedelta.days * 86400
+        sql = 'TIMESTAMPADD(\'s\', %d%%s, %%s)' % sec
+        if timedelta.microseconds:
+            sql = 'TIMESTAMPADD(\'f\', %d%%s, %s)' % (timedelta.microseconds, sql)
+        return sql
      
     def date_trunc_sql(self, lookup_type, field_name):
         if lookup_type =='year':
@@ -161,7 +174,15 @@ class DatabaseOperations(BaseDatabaseOperations):
         #return "DATEADD(%s, DATEDIFF(%s, 0, %s), 0)" % (lookup_type, lookup_type, field_name)
 
     def format_for_duration_arithmetic(self, sql):
-        return sql
+        if sql == '%s':
+            # use DATEADD only once because Django prepares only one parameter for this 
+            fmt = 'TIMESTAMPADD(\'s\', %s / 1000000%%s, %%s)'
+            sql = '%%s'
+        else:
+            # use DATEADD twice to avoid arithmetic overflow for number part
+            fmt = 'TIMESTAMPADD(\'s\', %s / 1000000%%s, TIMESTAMPADD(\'f\', %s %%%%%%%% 1000000%%s, %%s))'
+            sql = (sql, sql)
+        return fmt % sql
     
     def _convert_field_to_tz(self, field_name, tzname):
         if settings.USE_TZ and not tzname == 'UTC':

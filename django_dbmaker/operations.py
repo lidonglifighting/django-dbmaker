@@ -45,6 +45,8 @@ import decimal
 import time
 import uuid
 from _decimal import Decimal
+from django.db.models.fields import AutoField, IntegerField, DateTimeField,\
+    BooleanField
 
 try:
     import pytz
@@ -238,6 +240,21 @@ class DatabaseOperations(BaseDatabaseOperations):
             return "CAST(STRTIME(%s, 'start of %s') AS TIME)" % (field_name, format_str)
         else:
             return "CAST(STRTIME(%s) AS TIME)" % (field_name)
+    
+    def lookup_cast(self, lookup_type, internal_type=None):
+        lookup = '%s'
+
+        # Cast text lookups to text to allow things like filter(x__contains=4)
+        if lookup_type in ('iexact', 'contains', 'icontains', 'startswith',
+                           'istartswith', 'endswith', 'iendswith', 'regex', 'iregex'):
+            if internal_type in ('AutoField', 'IntegerField', 'DateTimeField', 'BooleanField'):
+                lookup = "CAST(%s AS VARCHAR(32))"
+
+        #  DBMaker not support Upper() like so ignore it
+        #if lookup_type in ('iexact', 'icontains', 'istartswith', 'iendswith'):
+            #lookup = 'UPPER(%s)' % lookup
+
+        return lookup
 
     def field_cast_sql(self, db_type, internal_type=None):
         """

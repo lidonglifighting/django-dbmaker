@@ -40,29 +40,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import subprocess
-import base64
-import random
-import os
 
-try:
-    from django.db.backends.base.creation import BaseDatabaseCreation
-except ImportError:
-    # import location prior to Django 1.8
-    from django.db.backends.creation import BaseDatabaseCreation
+from django.db.backends.base.creation import BaseDatabaseCreation
 
-
-from django_dbmaker.compat import b, md5_constructor
-
-class DataTypesWrapper(dict):
-    def __getitem__(self, item):
-#        if item in ('PositiveIntegerField', 'PositiveSmallIntegerField'):
-            # The check name must be unique for the database. Add a random
-            # component so the regresion tests don't complain about duplicate names
-#            fldtype = {'PositiveIntegerField': 'int', 'PositiveSmallIntegerField': 'smallint'}[item]
-#           rnd_hash = md5_constructor(b(str(random.random()))).hexdigest()
-#            unique = base64.b64encode(b(rnd_hash), b('__'))[:6]
-#            return '%(fldtype)s CONSTRAINT CK_%(fldtype)s_pos_%(unique)s_%%(column)s CHECK ((%%(column)s) >= 0)' % locals()
-        return super(DataTypesWrapper, self).__getitem__(item)
 class DatabaseCreation(BaseDatabaseCreation):
     # This dictionary maps Field objects to their associated MS SQL column
     # types, as strings. Column-type strings can contain format strings; they'll
@@ -72,44 +52,9 @@ class DatabaseCreation(BaseDatabaseCreation):
     # Any format strings starting with "qn_" are quoted before being used in the
     # output (the "qn_" prefix is stripped before the lookup is performed.
 
-    data_types = DataTypesWrapper({
-        'AutoField':                    'serial',
-        'BigAutoField':                 'bigserial',
-        'BigIntegerField':              'bigint',
-        'BinaryField':                  'blob',
-        'BooleanField':                 'int',
-        'CharField':                    'nvarchar(%(max_length)s)',
-        'CommaSeparatedIntegerField':   'nvarchar(%(max_length)s)',
-        'DateField':                    'date',
-        'DateTimeField':                'timestamp',
-        'DecimalField':                 'decimal(%(max_digits)s, %(decimal_places)s)',
-        'DurationField':                'bigint',
-        'FileField':                    'nvarchar(%(max_length)s)',
-        'FilePathField':                'nvarchar(%(max_length)s)',
-        'FloatField':                   'double',
-        'GenericIPAddressField':        'nvarchar(39)',
-        'IntegerField':                 'int',
-        'IPAddressField':               'nvarchar(15)',
-        'LegacyDateField':              'timestamp',
-        'LegacyDateTimeField':          'timestamp',
-        'LegacyTimeField':              'time',
-        'NewDateField':                 'date',
-        'NewDateTimeField':             'timestamp',
-        'NewTimeField':                 'time',
-        'NullBooleanField':             'int',
-        'OneToOneField':                'int',
-        'PositiveIntegerField':         'int',
-        'PositiveSmallIntegerField':    'smallint',
-        'SlugField':                    'nvarchar(%(max_length)s)',
-        'SmallIntegerField':            'smallint',
-        'TextField':                    'nclob',
-        'TimeField':                    'time',
-        'UUIDField':                    'char(32)',       
-    })
-    data_type_check_constraints = {
-        'PositiveIntegerField': '"%(column)s" >= 0',
-        'PositiveSmallIntegerField': '"%(column)s" >= 0',
-    }
+    
+    # For these columns, DBMaker doesn't:
+    # - accept default values and implicitly treats these columns as nullable
     
     def _create_test_db(self, verbosity=1, autoclobber=False, keepdb=False):
         settings_dict = self.connection.settings_dict

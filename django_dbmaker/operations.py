@@ -492,10 +492,24 @@ class DatabaseOperations(BaseDatabaseOperations):
     def get_db_converters(self, expression):
         converters = super().get_db_converters(expression)
         internal_type = expression.output_field.get_internal_type()       
-        if internal_type == 'UUIDField':
+        #if internal_type == 'IntegerField':
+            #converters.append(self.convert_intfield_value)
+        if internal_type == 'FloatField':
+            converters.append(self.convert_floatfield_value)
+        elif internal_type == 'UUIDField':
             converters.append(self.convert_uuidfield_value)
         return converters
+
+    def convert_intfield_value(self, value, expression, connection):
+        if value is not None:
+            value = int(value)
+        return value
     
+    def convert_floatfield_value(self, value, expression, connection):
+        if value is not None:
+            value = float(value)
+        return value
+
     def convert_uuidfield_value(self, value, expression, connection):
         if value is not None:
             value = uuid.UUID(value)

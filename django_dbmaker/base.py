@@ -127,7 +127,49 @@ class DatabaseWrapper(BaseDatabaseWrapper):
     # Full-Text search: http://msdn2.microsoft.com/en-us/library/ms142571.aspx
     #   CONTAINS:       http://msdn2.microsoft.com/en-us/library/ms187787.aspx
     #   FREETEXT:       http://msdn2.microsoft.com/en-us/library/ms176078.aspx
+    data_types = {
+        'AutoField':                    'serial',
+        'BigAutoField':                 'bigserial',
+        'BigIntegerField':              'bigint',
+        'BinaryField':                  'blob',
+        'BooleanField':                 'int',
+        'CharField':                    'nvarchar(%(max_length)s)',
+        'CommaSeparatedIntegerField':   'nvarchar(%(max_length)s)',
+        'DateField':                    'date',
+        'DateTimeField':                'timestamp',
+        'DecimalField':                 'decimal(%(max_digits)s, %(decimal_places)s)',
+        'DurationField':                'bigint',
+        'FileField':                    'nvarchar(%(max_length)s)',
+        'FilePathField':                'nvarchar(%(max_length)s)',
+        'FloatField':                   'double',
+        'GenericIPAddressField':        'nvarchar(39)',
+        'IntegerField':                 'int',
+        'IPAddressField':               'nvarchar(15)',
+        'LegacyDateField':              'timestamp',
+        'LegacyDateTimeField':          'timestamp',
+        'LegacyTimeField':              'time',
+        'NewDateField':                 'date',
+        'NewDateTimeField':             'timestamp',
+        'NewTimeField':                 'time',
+        'NullBooleanField':             'int',
+        'OneToOneField':                'int',
+        'PositiveIntegerField':         'int',
+        'PositiveSmallIntegerField':    'smallint',
+        'SlugField':                    'nvarchar(%(max_length)s)',
+        'SmallIntegerField':            'smallint',
+        'TextField':                    'nclob',
+        'TimeField':                    'time',
+        'UUIDField':                    'char(32)',       
+    }
 
+    data_type_check_constraints = {
+        'PositiveIntegerField': '"%(column)s" >= 0',
+        'PositiveSmallIntegerField': '"%(column)s" >= 0',
+    }
+
+    _limited_data_types = (
+       'file', 'jsoncols',
+    )
     operators = {
         # Since '=' is used not only for string comparision there is no way
         # to make it case (in)sensitive. It will simply fallback to the
@@ -173,7 +215,6 @@ class DatabaseWrapper(BaseDatabaseWrapper):
 
     # In Django 1.8 data_types was moved from DatabaseCreation to DatabaseWrapper.
     # See https://docs.djangoproject.com/en/1.10/releases/1.8/#database-backend-api
-    data_types = DatabaseCreation.data_types
     SchemaEditorClass = DatabaseSchemaEditor
     features_class = DatabaseFeatures
     ops_class = DatabaseOperations

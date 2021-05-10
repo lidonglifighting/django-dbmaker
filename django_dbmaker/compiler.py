@@ -55,11 +55,11 @@ def _as_sql_order_by(self, compiler, connection):
     if self.nulls_last:
         template = 'CASE WHEN %(expression)s IS NULL THEN 1 ELSE 0 END, %(expression)s %(ordering)s'
     if self.nulls_first:
-        template = 'CASE WHEN %(expression)s IS NULL THEN 0 ELSE 1 END, %(expression)s %(ordering)s'
+        template = 'CASE WHEN %(expression)s IS NULL THEN 0 ELSE 1 END, %(expression)s %(ordering)s'  
     return self.as_sql(compiler, connection, template=template)
 
 class SQLCompiler(compiler.SQLCompiler):  
-          
+       
     def compile(self, node, select_format=False):
         node = self._as_dbmaker(node)
         return super().compile(node, select_format)

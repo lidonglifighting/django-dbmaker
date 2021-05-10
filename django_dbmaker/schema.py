@@ -25,6 +25,74 @@ class DatabaseSchemaEditor(BaseDatabaseSchemaEditor):
 
     sql_delete_index = "DROP INDEX %(name)s FROM %(table)s"
 
+    def _is_limited_data_type(self, field):
+        db_type = field.db_type(self.connection)
+        return db_type is not None and db_type.lower() in self.connection._limited_data_types
+
+    def skip_default(self, field):
+        return self._is_limited_data_type(field)
+    
+    def add_field(self, model, field):
+        """
+        Create a field on a model. Usually involves adding a column, but may
+        involve adding a table instead (for M2M fields).
+        """
+        # Special-case implicit M2M tables
+        if field.many_to_many and field.remote_field.through._meta.auto_created:
+            return self.create_model(field.remote_field.through)
+        # Get the column's definition
+                    
+        definition, params = self.column_sql(model, field, include_default=True)
+        # It might not actually have a column behind it
+        if definition is None:
+            return
+        #dbmaker don't support unique in add column
+        if 'UNIQUE' in definition:
+            definition = definition.replace('UNIQUE', '')
+            self.deferred_sql.append(self._create_unique_sql(model, [field.column]))
+             
+        # Check constraints can go on the column SQL here
+        db_params = field.db_parameters(connection=self.connection)
+        if db_params['check']:
+            definition += " " + self.sql_check_constraint % db_params
+        
+        #dbmaker need add give val in default val not null       
+        default_val = self.effective_default(field)
+        needs_give = (
+            not field.null and
+            default_val is not None and
+            not self.skip_default(field) and
+            self.connection.features.requires_literal_defaults
+        )
+        if needs_give:
+            default = self.prepare_default(default_val)
+            definition += " give " + default
+            
+        # Build the SQL and run it
+        sql = self.sql_create_column % {
+            "table": self.quote_name(model._meta.db_table),
+            "column": self.quote_name(field.column),
+            "definition": definition,
+        }
+        self.execute(sql, params)
+        # Drop the default if we need to
+        # (Django usually does not use in-database defaults)
+        if not self.skip_default(field) and self.effective_default(field) is not None:
+            changes_sql, params = self._alter_column_default_sql(model, None, field, drop=True)
+            sql = self.sql_alter_column % {
+                "table": self.quote_name(model._meta.db_table),
+                "changes": changes_sql,
+            }
+            self.execute(sql, params)
+        # Add an index, if required
+        self.deferred_sql.extend(self._field_indexes_sql(model, field))
+        # Add any FK constraints later
+        if field.remote_field and self.connection.features.supports_foreign_keys and field.db_constraint:
+            self.deferred_sql.append(self._create_fk_sql(model, field, "_fk_%(to_table)s_%(to_column)s"))
+        # Reset connection if required
+        if self.connection.features.connection_persists_old_columns:
+            self.connection.close()
+
     def quote_value(self, value):
         if isinstance(value, (datetime.date, datetime.time, datetime.datetime)):
             return "'%s'" % value
@@ -67,14 +135,13 @@ class DatabaseSchemaEditor(BaseDatabaseSchemaEditor):
                     sql += " DEFAULT %s"
                     params += [default_value]
         
-        if  db_params['type'].lower() not in ("serial", "bigserial", "jsoncols"):          
-            if (field.empty_strings_allowed and not field.primary_key and
+        if (field.empty_strings_allowed and not field.primary_key and
                 self.connection.features.interprets_empty_strings_as_nulls):
-                null = True
-            if null and not self.connection.features.implied_column_null:
-                sql += " NULL"
-            elif not null:
-                sql += " NOT NULL"
+            null = True
+        if null and not self.connection.features.implied_column_null:
+            sql += " NULL"
+        elif not null and field.get_internal_type() not in ('AutoField', 'BigAutoField'):
+            sql += " NOT NULL"
         # Primary key/unique outputs
         if field.primary_key:
             sql += " PRIMARY KEY"

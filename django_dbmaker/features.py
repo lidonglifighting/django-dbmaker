@@ -27,5 +27,6 @@ class DatabaseFeatures(BaseDatabaseFeatures):
     supports_select_difference = False
     update_can_self_select = False
     has_zoneinfo_database = False
+    supports_ignore_conflicts = False
 #    case_whennot_not_supported = True
 

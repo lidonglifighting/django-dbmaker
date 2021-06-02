@@ -1,4 +1,8 @@
 import datetime
+from django.db.backends.ddl_references import (
+    Columns, ForeignKeyName, Statement, Table,
+)
+from django.db.backends.utils import split_identifier
 from django.db.backends.base.schema import BaseDatabaseSchemaEditor
 from django.db.models import NOT_PROVIDED
 
@@ -24,7 +28,11 @@ class DatabaseSchemaEditor(BaseDatabaseSchemaEditor):
     sql_delete_pk = "ALTER TABLE %(table)s DROP PRIMARY KEY %(name)s"
 
     sql_delete_index = "DROP INDEX %(name)s FROM %(table)s"
-
+    sql_create_fk = (
+        "ALTER TABLE %(table)s ADD CONSTRAINT %(name)s FOREIGN KEY (%(column)s) "
+        "REFERENCES %(to_table)s (%(to_column)s) %(on_update)s %(deferrable)s"
+    )
+   
     def _is_limited_data_type(self, field):
         db_type = field.db_type(self.connection)
         return db_type is not None and db_type.lower() in self.connection._limited_data_types
@@ -93,6 +101,49 @@ class DatabaseSchemaEditor(BaseDatabaseSchemaEditor):
         if self.connection.features.connection_persists_old_columns:
             self.connection.close()
 
+    def _create_fk_sql(self, model, field, suffix):
+        def create_fk_name(*args, **kwargs):
+            return self.quote_name(self._create_index_name(*args, **kwargs))
+
+        table = Table(model._meta.db_table, self.quote_name)
+        name = ForeignKeyName(
+            model._meta.db_table,
+            [field.column],
+            split_identifier(field.target_field.model._meta.db_table)[1],
+            [field.target_field.column],
+            suffix,
+            create_fk_name,
+        )
+        column = Columns(model._meta.db_table, [field.column], self.quote_name)
+        to_table = Table(field.target_field.model._meta.db_table, self.quote_name)
+        to_column = Columns(field.target_field.model._meta.db_table, [field.target_field.column], self.quote_name)
+        deferrable = self.connection.ops.deferrable_sql()
+        table_name = model._meta.db_table
+        to_table_name = field.target_field.model._meta.db_table
+        if(table_name == to_table_name):
+            return Statement(
+                self.sql_create_fk,
+                table=table,
+                name=name,
+                column=column,
+                to_table=to_table,
+                to_column=to_column,
+                on_update="",
+                deferrable=deferrable,
+            )    
+        else:
+            return Statement(
+                self.sql_create_fk,
+                table=table,
+                name=name,
+                column=column,
+                to_table=to_table,
+                to_column=to_column,
+                on_update="ON UPDATE CASCADE",
+                deferrable=deferrable,
+            
+            )
+        
     def quote_value(self, value):
         if isinstance(value, (datetime.date, datetime.time, datetime.datetime)):
             return "'%s'" % value

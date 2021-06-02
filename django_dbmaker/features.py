@@ -28,5 +28,7 @@ class DatabaseFeatures(BaseDatabaseFeatures):
     update_can_self_select = False
     has_zoneinfo_database = False
     supports_ignore_conflicts = False
+    allow_sliced_subqueries_with_in = False
+    nulls_order_largest = True
 #    case_whennot_not_supported = True
 

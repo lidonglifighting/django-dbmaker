@@ -399,13 +399,32 @@ class CursorWrapper(object):
             else:
                 fp.append(p)
         return tuple(fp)
+    
+    def quote_value(self, value):
+        if isinstance(value, (datetime.date, datetime.time, datetime.datetime)):
+            return "cast('%s' as timestamp)" % value
+        elif isinstance(value, str):
+            return "'%s'" % value.replace("\'", "\'\'")
+        elif isinstance(value, (bytes, bytearray, memoryview)):
+            return  "X'%s'" % value.hex()
+        elif isinstance(value, bool):
+            return "1" if value else "0"
+        elif value is None:
+            return "NULL"
+        else:
+            return str(value)
 
     def execute(self, sql, params=()):       
         self.last_sql = sql
-        sql = self.format_sql(sql, len(params))
-        params = self.format_params(params)
-        self.last_params = params
-        sql = sql.replace('%%', '%')
+        if (('CASE WHEN' in sql) or
+            ( '(%s) AS' in sql) ) and params is not None:#ldl
+            sql = sql % tuple(map(self.quote_value, params))
+            return self.cursor.execute(sql)
+        else:
+            sql = self.format_sql(sql, len(params))
+            params = self.format_params(params)
+            self.last_params = params
+            sql = sql.replace('%%', '%')
         try:
             return self.cursor.execute(sql, params)
         except IntegrityError:

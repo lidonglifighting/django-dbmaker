@@ -103,6 +103,7 @@ class DatabaseOperations(BaseDatabaseOperations):
         """
         DBMaker requires special cases for some operators in query expressions
         """
+        lhs, rhs = sub_expressions
         if connector == '%%':
             return 'MOD(%s)' % ','.join(sub_expressions)
         elif connector == '&':
@@ -112,9 +113,9 @@ class DatabaseOperations(BaseDatabaseOperations):
         elif connector == '^':
             return 'POWER(%s)' % ','.join(sub_expressions)
         elif connector == '<<':
-            return '%s * (2 * %s)' % tuple(sub_expressions)
+            return '(%(lhs)s * POWER(2, %(rhs)s))' % {'lhs': lhs, 'rhs': rhs}
         elif connector == '>>':
-            return '%s / (2 * %s)' % tuple(sub_expressions)
+            return 'FLOOR(%(lhs)s / POWER(2, %(rhs)s))' % {'lhs': lhs, 'rhs': rhs}
         return super().combine_expression(connector, sub_expressions)
     
     def combine_duration_expression(self, connector, sub_expressions):
@@ -175,15 +176,17 @@ class DatabaseOperations(BaseDatabaseOperations):
             return field_name
         #return "DATEADD(%s, DATEDIFF(%s, 0, %s), 0)" % (lookup_type, lookup_type, field_name)
 
-    def format_for_duration_arithmetic(self, sql):
+    def format_for_duration_arithmetic(self, sql): 
+           
         if sql == '%s':
             # use DATEADD only once because Django prepares only one parameter for this 
             fmt = 'TIMESTAMPADD(\'s\', %s / 1000000%%s, %%s)'
             sql = '%%s'
         else:
             # use DATEADD twice to avoid arithmetic overflow for number part
-            fmt = 'TIMESTAMPADD(\'s\', %s / 1000000%%s, TIMESTAMPADD(\'f\', %s %%%%%%%% 1000000%%s, %%s))'
-            sql = (sql, sql)
+            fmt = 'TIMESTAMPADD(\'s\', %s / 1000000%%s, %%s)'
+            #fmt = 'TIMESTAMPADD(\'s\', %s / 1000000%%s, TIMESTAMPADD(\'f\', %s %%%%%%%% 1000000%%s, %%s))'
+            sql = (sql)  
         return fmt % sql
     
     def _convert_field_to_tz(self, field_name, tzname):
@@ -498,7 +501,14 @@ class DatabaseOperations(BaseDatabaseOperations):
             converters.append(self.convert_floatfield_value)
         elif internal_type == 'UUIDField':
             converters.append(self.convert_uuidfield_value)
+        elif internal_type in ['BooleanField', 'NullBooleanField']:
+            converters.append(self.convert_booleanfield_value)
         return converters
+    
+    def convert_booleanfield_value(self, value, expression, connection):
+        if value in (0, 1):
+            value = bool(value)
+        return value
 
     def convert_intfield_value(self, value, expression, connection):
         if value is not None:

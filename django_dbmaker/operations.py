@@ -58,8 +58,9 @@ from django.db.backends.base.operations import BaseDatabaseOperations
 from django.db import utils
 from django.utils.dateparse import parse_date, parse_time, parse_datetime
 
-from django_dbmaker.compat import smart_text, string_types, timezone
-from django.utils import six
+#from django_dbmaker.compat import smart_text, string_types, timezone
+#from django.utils import six
+from django.utils import timezone
 from django.utils.duration import duration_microseconds
 
 class DatabaseOperations(BaseDatabaseOperations):
@@ -163,7 +164,7 @@ class DatabaseOperations(BaseDatabaseOperations):
             sql = 'TIMESTAMPADD(\'f\', %d%%s, %s)' % (timedelta.microseconds, sql)
         return sql
      
-    def date_trunc_sql(self, lookup_type, field_name):
+    def date_trunc_sql(self, lookup_type, field_name, tzname=None):
         if lookup_type =='year':
             return "TO_DATE(STRDATE(%s,'start of year'), 'yyyy-mm-dd')" % field_name
         if lookup_type == 'month':
@@ -176,8 +177,7 @@ class DatabaseOperations(BaseDatabaseOperations):
             return field_name
         #return "DATEADD(%s, DATEDIFF(%s, 0, %s), 0)" % (lookup_type, lookup_type, field_name)
 
-    def format_for_duration_arithmetic(self, sql): 
-           
+    def format_for_duration_arithmetic(self, sql):
         if sql == '%s':
             # use DATEADD only once because Django prepares only one parameter for this 
             fmt = 'TIMESTAMPADD(\'s\', %s / 1000000%%s, %%s)'
@@ -330,7 +330,7 @@ class DatabaseOperations(BaseDatabaseOperations):
        """
        return "REMOVE SAVEPOINT %s" % self.quote_name(sid)
 
-    def sql_flush(self, style, tables, sequences, allow_cascade=False):
+    def sql_flush(self, style, tables, *, reset_sequences=False, allow_cascade=False):
         """
         Returns a list of SQL statements required to remove all data from
         the given database tables (without actually removing the tables
@@ -347,7 +347,6 @@ class DatabaseOperations(BaseDatabaseOperations):
                     style.SQL_FIELD(self.quote_name(table)),
                 ))
             sql.append('CALL SETSYSTEMOPTION(\'FKCHK\', \'1\');')
-            sql.extend(self.sequence_reset_by_name_sql(style, sequences))
             return sql
         else:
             return []
@@ -387,7 +386,7 @@ class DatabaseOperations(BaseDatabaseOperations):
     def prep_for_like_query(self, x):
         """Prepares a value for use in a LIKE query."""
         # http://msdn2.microsoft.com/en-us/library/ms179859.aspx
-        return smart_text(x).replace('%', '\%').replace('_', '\_')
+        return str(x).replace('%', '\%').replace('_', '\_')
 
     def prep_for_iexact_query(self, x):
         """
@@ -425,7 +424,7 @@ class DatabaseOperations(BaseDatabaseOperations):
         if hasattr(value, 'resolve_expression'):
             return value
         # SQL Server doesn't support microseconds
-        if isinstance(value, string_types):
+        if isinstance(value, str):
             return datetime.datetime(*(time.strptime(value, '%H:%M:%S')[:6]))
         if timezone.is_aware(value):
             raise ValueError("DBMaker backend does not support timezone-aware times.")
@@ -450,48 +449,7 @@ class DatabaseOperations(BaseDatabaseOperations):
         # SQL Server doesn't support microseconds
         last = '%s-12-31 23:59:59'
         return [first % value, last % value]
-
-    def convert_values(self, value, field):
-        """
-        Coerce the value returned by the database backend into a consistent
-        type that is compatible with the field type.
-
-        In our case, cater for the fact that SQL Server < 2008 has no
-        separate Date and Time data types.
-        TODO: See how we'll handle this for SQL Server >= 2008
-        """
-        if value is None:
-            return None
-        if field and field.get_internal_type() == 'DateTimeField':
-            if isinstance(value, string_types) and value:
-                value = parse_datetime(value)
-            return value
-        elif field and field.get_internal_type() == 'DateField':
-            if isinstance(value, datetime.datetime):
-                value = value.date() # extract date
-            elif isinstance(value, string_types):
-                value = parse_date(value)
-        elif field and field.get_internal_type() == 'TimeField':
-            if (isinstance(value, datetime.datetime) and value.year == 1900 and value.month == value.day == 1):
-                value = value.time() # extract time
-            elif isinstance(value, string_types):
-                # If the value is a string, parse it using parse_time.
-                value = parse_time(value)
-        # Some cases (for example when select_related() is used) aren't
-        # caught by the DateField case above and date fields arrive from
-        # the DB as datetime instances.
-        # Implement a workaround stealing the idea from the Oracle
-        # backend. It's not perfect so the same warning applies (i.e. if a
-        # query results in valid date+time values with the time part set
-        # to midnight, this workaround can surprise us by converting them
-        # to the datetime.date Python type).
-        elif isinstance(value, datetime.datetime) and value.hour == value.minute == value.second == value.microsecond == 0:
-            value = value.date()
-        # Force floats to the correct type
-        elif value is not None and field and field.get_internal_type() == 'FloatField':
-            value = float(value)
-        return value
-    
+   
     def get_db_converters(self, expression):
         converters = super().get_db_converters(expression)
         internal_type = expression.output_field.get_internal_type()       
@@ -524,6 +482,8 @@ class DatabaseOperations(BaseDatabaseOperations):
         if value is not None:
             value = uuid.UUID(value)
         return value
+    
+
     
     def no_limit_value(self):
         return None

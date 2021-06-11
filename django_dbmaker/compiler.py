@@ -60,9 +60,9 @@ def _as_sql_order_by(self, compiler, connection):
 
 class SQLCompiler(compiler.SQLCompiler):  
        
-    def compile(self, node, select_format=False):
+    def compile(self, node):
         node = self._as_dbmaker(node)
-        return super().compile(node, select_format)
+        return super().compile(node)
 
     def _as_dbmaker(self, node):
         as_dbmaker = None

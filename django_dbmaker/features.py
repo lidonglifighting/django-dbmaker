@@ -1,4 +1,5 @@
 from django.db.backends.base.features import BaseDatabaseFeatures
+from django.utils.functional import cached_property
 
 class DatabaseFeatures(BaseDatabaseFeatures):
     can_use_chunked_reads = False
@@ -32,3 +33,13 @@ class DatabaseFeatures(BaseDatabaseFeatures):
     nulls_order_largest = True
 #    case_whennot_not_supported = True
 
+    @cached_property
+    def introspected_field_types(self):
+        return {
+            **super().introspected_field_types,
+            'PositiveBigIntegerField': 'BigIntegerField',
+            'PositiveIntegerField': 'IntegerField',
+            'PositiveSmallIntegerField': 'SmallIntegerField',
+            'SmallAutoField': 'AutoField',
+            'DurationField': 'BigIntegerField',
+        }

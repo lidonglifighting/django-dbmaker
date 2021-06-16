@@ -57,6 +57,9 @@ from django.conf import settings
 from django.db.backends.base.operations import BaseDatabaseOperations
 from django.db import utils
 from django.utils.dateparse import parse_date, parse_time, parse_datetime
+from django.db.models import Exists, ExpressionWrapper
+from django.db.models.expressions import RawSQL
+from django.db.models.sql.where import WhereNode
 
 #from django_dbmaker.compat import smart_text, string_types, timezone
 #from django.utils import six
@@ -98,8 +101,17 @@ class DatabaseOperations(BaseDatabaseOperations):
                 self._right_sql_quote = q
             else:           
                 self._right_sql_quote = '"'
-        return self._right_sql_quote        
+        return self._right_sql_quote
         
+    def conditional_expression_supported_in_where_clause(self, expression):
+        if isinstance(expression, (Exists, WhereNode)):
+            return True
+        if isinstance(expression, ExpressionWrapper) and expression.conditional:
+            return self.conditional_expression_supported_in_where_clause(expression.expression)
+        if isinstance(expression, RawSQL) and expression.conditional:
+            return True
+        return False
+    
     def combine_expression(self, connector, sub_expressions):
         """
         DBMaker requires special cases for some operators in query expressions
@@ -117,6 +129,8 @@ class DatabaseOperations(BaseDatabaseOperations):
             return '(%(lhs)s * POWER(2, %(rhs)s))' % {'lhs': lhs, 'rhs': rhs}
         elif connector == '>>':
             return 'FLOOR(%(lhs)s / POWER(2, %(rhs)s))' % {'lhs': lhs, 'rhs': rhs}
+        elif connector == '#':
+            return 'BXOR(%s)' % ','.join(sub_expressions)
         return super().combine_expression(connector, sub_expressions)
     
     def combine_duration_expression(self, connector, sub_expressions):
@@ -431,12 +445,7 @@ class DatabaseOperations(BaseDatabaseOperations):
         return datetime.time(value.hour, value.minute, value.second)
 
     def adapt_decimalfield_value(self, value, max_digits=None, decimal_places=None):
-        """
-        Transform a decimal.Decimal value to an object compatible with what is
-        expected by the backend driver for decimal (numeric) columns.
-        """
-        strvalue = super().adapt_decimalfield_value(value, max_digits, decimal_places)
-        return Decimal(strvalue)
+        return value
     
     def year_lookup_bounds(self, value):
         """

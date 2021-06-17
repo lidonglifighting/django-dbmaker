@@ -148,7 +148,7 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         'GenericIPAddressField':        'nvarchar(39)',
         'IntegerField':                 'int',
         'IPAddressField':               'nvarchar(15)',
-        'JSONField':                    'nclob',
+        'JSONField':                    'jsoncols',
         'LegacyDateField':              'timestamp',
         'LegacyDateTimeField':          'timestamp',
         'LegacyTimeField':              'time',

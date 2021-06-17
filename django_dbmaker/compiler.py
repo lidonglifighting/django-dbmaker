@@ -43,20 +43,11 @@
 import re
 from django.db.models.sql import compiler, where
 from django.db.models.aggregates import Avg
-from django.db.models.expressions import OrderBy
 import django
 import types
 
 def _as_sql_agv(self, compiler, connection):
     return self.as_sql(compiler, connection,  template='%(function)s(CAST(%(field)s AS FLOAT))')
-
-def _as_sql_order_by(self, compiler, connection):
-    template = None
-    if self.nulls_last:
-        template = 'CASE WHEN %(expression)s IS NULL THEN 1 ELSE 0 END, %(expression)s %(ordering)s'
-    if self.nulls_first:
-        template = 'CASE WHEN %(expression)s IS NULL THEN 0 ELSE 1 END, %(expression)s %(ordering)s'  
-    return self.as_sql(compiler, connection, template=template)
 
 class SQLCompiler(compiler.SQLCompiler):  
        
@@ -68,8 +59,6 @@ class SQLCompiler(compiler.SQLCompiler):
         as_dbmaker = None
         if isinstance(node, Avg):
             as_dbmaker = _as_sql_agv
-        elif isinstance(node, OrderBy):
-            as_dbmaker = _as_sql_order_by
         if as_dbmaker:
             node = node.copy()
             node.as_dbmaker = types.MethodType(as_dbmaker, node)

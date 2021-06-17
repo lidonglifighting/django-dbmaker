@@ -30,7 +30,16 @@ class DatabaseFeatures(BaseDatabaseFeatures):
     has_zoneinfo_database = False
     supports_ignore_conflicts = False
     allow_sliced_subqueries_with_in = False
-    nulls_order_largest = True
+    order_by_nulls_first = True
+    supports_json_field_contains = False
+    supports_collation_on_textfield = False
+    has_native_json_field = True
+    has_json_operators = True
+    json_key_contains_list_matching_requires_list = True
+
+    # Does the backend support NULLS FIRST and NULLS LAST in ORDER BY?
+    supports_order_by_nulls_modifier = False
+    supports_json_field = False
 #    case_whennot_not_supported = True
 
     @cached_property

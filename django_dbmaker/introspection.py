@@ -76,7 +76,7 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
         Database.SQL_VARCHAR:           'TextField',
         Database.SQL_WCHAR:             'CharField',
         Database.SQL_WLONGVARCHAR:      'TextField',
-        Database.SQL_WVARCHAR:          'TextField',
+        Database.SQL_WVARCHAR:          'CharField',
     }
 
     def get_table_list(self, cursor):
@@ -96,7 +96,7 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
         #from django.db import connection
         #cursor.execute("SELECT COLUMNPROPERTY(OBJECT_ID(%s), %s, 'IsIdentity')",
         #                 (connection.ops.quote_name(table_name), column_name))
-        cursor.execute("SELECT COUNT(*) FROM SYSCOLUMN WHERE TABLE_NAME = UPPER(%s) AND COLUMN_NAME=UPPER(%s) AND TYPE_NAME='SERIAL'",
+        cursor.execute("SELECT COUNT(*) FROM SYSCOLUMN WHERE TABLE_NAME = UPPER(%s) AND COLUMN_NAME=UPPER(%s) AND (TYPE_NAME='SERIAL' OR TYPE_NAME='BIGSERAL')",
                          (self.connection.ops.quote_name(table_name), column_name))
         return cursor.fetchall()[0][0]
 
@@ -118,11 +118,6 @@ class DatabaseIntrospection(BaseDatabaseIntrospection):
             column[0] = self.identifier_converter(column[0])
             if identity_check and self._is_auto_field(cursor, table_name, column[0]):
                 column[1] = SQL_AUTOFIELD
-            # The conversion from TextField to CharField below is unwise.
-            #   A SQLServer db field of type "Text" is not interchangeable with a CharField, no matter how short its max_length.
-            #   For example, model.objects.values(<text_field_name>).count() will fail on a sqlserver 'text' field
-            if column[1] == Database.SQL_WVARCHAR and column[3] < 4000:
-                column[1] = Database.SQL_WCHAR    
             items.append(FieldInfo(*column))
             
         return items  

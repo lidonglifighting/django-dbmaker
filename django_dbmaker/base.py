@@ -99,7 +99,7 @@ else:
 
 from django_dbmaker.operations import DatabaseOperations
 from django_dbmaker.client import DatabaseClient
-from django_dbmaker.compat import binary_type, text_type, timezone
+from django.utils import timezone
 from django_dbmaker.creation import DatabaseCreation
 from django_dbmaker.introspection import DatabaseIntrospection
 from .schema import DatabaseSchemaEditor
@@ -386,12 +386,8 @@ class CursorWrapper(object):
 
     def format_params(self, params):
         fp = []
-        for p in params:
-            if isinstance(p, text_type):
-                fp.append(p)
-            elif isinstance(p, binary_type):
-                fp.append(p)
-            elif isinstance(p, type(True)):
+        for p in params:           
+            if isinstance(p, type(True)):
                 if p:
                     fp.append(1)
                 else:

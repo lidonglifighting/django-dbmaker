@@ -58,9 +58,7 @@ from django.db.backends.base.operations import BaseDatabaseOperations
 from django.db import utils
 from django.utils.dateparse import parse_date, parse_time, parse_datetime
 
-from django_dbmaker.compat import smart_text, string_types, timezone
-from django.utils import six
-from django.utils.duration import duration_microseconds
+from django.utils import timezone
 
 class DatabaseOperations(BaseDatabaseOperations):
     compiler_module = "django_dbmaker.compiler"
@@ -387,7 +385,7 @@ class DatabaseOperations(BaseDatabaseOperations):
     def prep_for_like_query(self, x):
         """Prepares a value for use in a LIKE query."""
         # http://msdn2.microsoft.com/en-us/library/ms179859.aspx
-        return smart_text(x).replace('%', '\%').replace('_', '\_')
+        return str(x).replace('%', '\%').replace('_', '\_')
 
     def prep_for_iexact_query(self, x):
         """
@@ -425,7 +423,7 @@ class DatabaseOperations(BaseDatabaseOperations):
         if hasattr(value, 'resolve_expression'):
             return value
         # SQL Server doesn't support microseconds
-        if isinstance(value, string_types):
+        if isinstance(value, str):
             return datetime.datetime(*(time.strptime(value, '%H:%M:%S')[:6]))
         if timezone.is_aware(value):
             raise ValueError("DBMaker backend does not support timezone-aware times.")
@@ -463,18 +461,18 @@ class DatabaseOperations(BaseDatabaseOperations):
         if value is None:
             return None
         if field and field.get_internal_type() == 'DateTimeField':
-            if isinstance(value, string_types) and value:
+            if isinstance(value, str) and value:
                 value = parse_datetime(value)
             return value
         elif field and field.get_internal_type() == 'DateField':
             if isinstance(value, datetime.datetime):
                 value = value.date() # extract date
-            elif isinstance(value, string_types):
+            elif isinstance(value, str):
                 value = parse_date(value)
         elif field and field.get_internal_type() == 'TimeField':
             if (isinstance(value, datetime.datetime) and value.year == 1900 and value.month == value.day == 1):
                 value = value.time() # extract time
-            elif isinstance(value, string_types):
+            elif isinstance(value, str):
                 # If the value is a string, parse it using parse_time.
                 value = parse_time(value)
         # Some cases (for example when select_related() is used) aren't

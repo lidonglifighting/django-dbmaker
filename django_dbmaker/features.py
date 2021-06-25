@@ -30,5 +30,8 @@ class DatabaseFeatures(BaseDatabaseFeatures):
     supports_ignore_conflicts = False
     allow_sliced_subqueries_with_in = False
     nulls_order_largest = True
+    #order_by_nulls_first = True
+    # Does the backend support NULLS FIRST and NULLS LAST in ORDER BY?
+    #supports_order_by_nulls_modifier = False
 #    case_whennot_not_supported = True
 

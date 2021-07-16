@@ -63,7 +63,7 @@ from django.utils import timezone
 class DatabaseOperations(BaseDatabaseOperations):
     compiler_module = "django_dbmaker.compiler"
         
-    cast_char_field_without_max_length = 'NVARCHAR2(256)'
+    cast_char_field_without_max_length = 'VARCHAR(256)'
     cast_data_types = {
         'AutoField': 'INT',
         'BigAutoField': 'BIGINT',
@@ -140,6 +140,8 @@ class DatabaseOperations(BaseDatabaseOperations):
             return "WEEK(%s)" % field_name
         elif lookup_type == 'quarter':
             return "QUARTER(%s)" % field_name
+        elif lookup_type == 'year':
+            return "YEAR(%s)" % field_name
         elif lookup_type == 'month':
             return "MONTH(%s)" % field_name
         elif lookup_type == 'day':
@@ -252,8 +254,8 @@ class DatabaseOperations(BaseDatabaseOperations):
                 lookup = "CAST(%s AS VARCHAR(32))"
 
         #  DBMaker not support Upper() like so ignore it
-        #if lookup_type in ('iexact', 'icontains', 'istartswith', 'iendswith'):
-            #lookup = 'UPPER(%s)' % lookup
+        if lookup_type == 'iexact':
+            lookup = 'UPPER(%s)' % lookup
 
         return lookup
 
@@ -345,7 +347,6 @@ class DatabaseOperations(BaseDatabaseOperations):
                     style.SQL_FIELD(self.quote_name(table)),
                 ))
             sql.append('CALL SETSYSTEMOPTION(\'FKCHK\', \'1\');')
-            sql.extend(self.sequence_reset_by_name_sql(style, sequences))
             return sql
         else:
             return []

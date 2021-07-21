@@ -150,8 +150,10 @@ class DatabaseSchemaEditor(BaseDatabaseSchemaEditor):
         elif isinstance(value, str):
             if '\(\)' in value:
                 return "'%s'" % value.replace("\(\)", "()")
-            else:
+            elif '()' not in value:
                 return "'%s'" %  value.replace("\'", "\'\'")
+            else:
+                return str(value)
         elif isinstance(value, (bytes, bytearray, memoryview)):
             return  "X'%s'" % value.hex()
         elif isinstance(value, bool):

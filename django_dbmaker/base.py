@@ -267,6 +267,7 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         cursor = self.create_cursor()
         cursor.execute("set string concat on")
         cursor.execute("set itcom on")
+        cursor.execute("set log file")
         cursor.close()
         if not self.get_autocommit():
             self.commit()

@@ -42,7 +42,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
-DBMaker Database backend for Django.
+DBMaker database backend for Django.
 """
 import datetime
 import logging
